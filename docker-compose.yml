@@ -1,0 +1,39 @@
+services:
+  juuksur-db:
+    image: postgres:16-alpine
+    container_name: juuksur-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-juuksur}
+      POSTGRES_USER: ${POSTGRES_USER:-juuksur}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      TZ: Europe/Tallinn
+    volumes:
+      - juuksur_db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-juuksur} -d ${POSTGRES_DB:-juuksur}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  juuksur-app:
+    build: .
+    image: juuksur-app:latest
+    container_name: juuksur-app
+    restart: unless-stopped
+    depends_on:
+      juuksur-db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: "3100"
+      DATABASE_URL: postgres://${POSTGRES_USER:-juuksur}:${POSTGRES_PASSWORD}@juuksur-db:5432/${POSTGRES_DB:-juuksur}
+      SESSION_SECRET: ${SESSION_SECRET}
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      TZ: Europe/Tallinn
+    ports:
+      - "127.0.0.1:3100:3100"
+
+volumes:
+  juuksur_db_data:
